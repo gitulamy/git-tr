@@ -6,7 +6,21 @@ You can mange your feature branches related with trello cards.
 Installation
 ============
 
-(TODO)
+Clone the git repository or download zip file run install.sh
+
+```bash
+$ git clone https://github.com/gitulamy/git-tr.git
+$ ./install.sh
+```
+
+OR
+
+```baseh
+$ curl https://codeload.github.com/gitulamy/git-tr/zip/master > git-tr.zip
+$ unzip git-tr.zip
+$ cd gut-tr-master
+$ ./install.sh
+```
 
 Usage
 =====
