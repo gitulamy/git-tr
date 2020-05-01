@@ -10,40 +10,56 @@ git_dir() {
 load_settings() {
     export git_dir=$(git rev-parse --git-dir 2>/dev/null)
     export develop_branch=$(git config --get trello.branch.develop)
+    export release_branch=$(git config --get trello.branch.release)
     export basebranchweb=$(git config --get trello.basebranchweb)
 }
 
 init() {
     load_settings
+    echo ""
+    echo "* You are about to set git local variables for trello."
     if test -z "$develop_branch"; then
-        develop_branch=$(git branch | grep develop)
+        develop_branch=$(git branch | grep -w develop | tr '*' ' ' | head -1)
+        develop_branch=$(echo $develop_branch)
     fi
-    if test -z "$develop_branch"; then
-        echo "* Branches..."
-        git branch | grep -v '/' | tr '*' '' | xargs -n 1 echo
-        while true
-        do
-            echo -n "Your develop branch: "
-            read develop_branch
-            if git branch -l | grep -q $develop_branch; then
-                break
-            else
-                echo "Can't find the branch $develop_branch, to quit ctrl-c"
-            fi
-        done
-    else
-        echo "* Develop branch is detected: $develop_branch"
+    if test -z "$release_branch"; then
+        release_branch=$(git branch | grep -w master | tr '*' ' ' | head -1)
+        release_branch=$(echo $release_branch)
     fi
-    if test -n "$basebranchweb"; then
-        echo "* Detected base url for branch: $basebranchweb"
-    fi
+    echo ""
+    echo "* Branches for feature base."
+    PS3="Choose feature base branch (e.g.:$develop_branch): "
+    select develop_branch in $(git branch | grep -v '/' | tr '*' ' ')
+    do
+        if git branch -l | grep -q $develop_branch 2>/dev/null; then
+            break
+        fi
+    done
+    echo ""
+    echo "* Branches for hotfix base."
+    PS3="Choose hotfix base branch (e.g.:$release_branch): "
+    select release_branch in $(git branch | grep -v '/' | tr '*' ' ')
+    do
+        if git branch -l | grep -q $release_branch 2>/dev/null; then
+            break
+        fi
+    done
+
+    hint=
     savedbase="$basebranchweb"
+    echo ""
+    echo "* We need to set branch web url."
+    if test -n "$basebranchweb"; then
+        echo "* current: $basebranchweb"
+        hint=" (Empty to keep current value)"
+    fi
+    echo ""
+    echo "  Let me know your $develop_branch branch's web page (ends with $develop_branch)"
+    echo "  For e.g: https://bitbucket.org/your-org/your-repo/branch/$develop_branch"
     while true
     do
-        echo "* We need to set branch web url."
-        echo "  For e.g: https://bitbucket.org/your-org/your-repo/branch"
-        echo -n "* Base url for branches (enter for skip): "
-        read basebranchweb
+        echo ""
+        read -p "* Web page for $develop_branch branch$hint: " basebranchweb
         if test -z "$basebranchweb"; then
             if test -n "$savedbase"; then
                 basebranchweb="$savedbase"
@@ -51,21 +67,33 @@ init() {
             fi
             continue
         fi
-        echo "* For master branch: " $basebranchweb/master
-        echo -n "  Is that right? (Y/n): "
+        basebranchweb=${basebranchweb%/$develop_branch}
+        echo ""
+        echo "* Try open this: " $basebranchweb/$release_branch
+        echo -n "  Is it ok? (Y/n): "
         read yn
         if test -z "$yn" -o "$yn" = "y" -o "$yn" = "Y"; then
             break;
         fi
     done
     git config trello.branch.develop "$develop_branch"
+    git config trello.branch.release "$release_branch"
     git config trello.basebranchweb "$basebranchweb"
-    echo "* You settings are stored git local config."
-    echo "* You can check with:"
+    echo ""
+    echo "* You settings are stored git local config. check this,"
+    echo ""
     echo "  git config -l | grep trello"
+    echo ""
+    git config -l | grep trello
+    echo ""
+    echo "* Anytime you want to change those values, just run"
+    echo ""
+    echo "  git tr init"
+    echo ""
 }
 
 create() {
+    load_settings
     mode="$1"
     shift
     trellourl="$1"
@@ -82,13 +110,14 @@ create() {
         echo "Usage: git tr $mode https://trello.com/..."
         exit 1
     fi
-    echo $trellourl
-    echo "* Trying to switch develop..."
-    git checkout develop || exit
-    echo ""
     br="$mode/$trid"
-    echo "* Trying to create branch $br"
-    git checkout -b $br || exit
+    if test "$mode" = "feature"; then
+        basebr="$develop_branch"
+    else
+        basebr="$release_branch"
+    fi
+    echo "* Trying to create branch $br from $basebr"
+    git checkout -b $br $basebr || exit
     echo ""
     git config branch."$br".trello "$trellourl" || exit
 }
@@ -121,8 +150,13 @@ help() {
 }
 
 show() {
+    load_settings
     branch=$(current_branch)
     trellourl=$(git config --get branch."$branch".trello)
+    echo ""
+    echo "Base branch for features: $develop_branch"
+    echo "Base branch for hotfixes: $release_branch"
+    echo "Base branch view url    : $basebranchweb"
     echo ""
     echo "Current branch: $branch"
     echo "Current trello: $trellourl"
