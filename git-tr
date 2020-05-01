@@ -120,6 +120,15 @@ help() {
     echo "Help!"
 }
 
+show() {
+    branch=$(current_branch)
+    trellourl=$(git config --get branch."$branch".trello)
+    echo ""
+    echo "Current branch: $branch"
+    echo "Current trello: $trellourl"
+    echo ""
+}
+
 case "$1" in
     i|init)
         init
@@ -142,6 +151,9 @@ case "$1" in
     p|push)
         shift
         push "$@"
+        ;;
+    "")
+        show
         ;;
     *)
         echo "Unkown command $1"
