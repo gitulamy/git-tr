@@ -1,0 +1,150 @@
+#!/bin/bash
+current_branch() {
+    git branch --no-color | grep '^\* ' | grep -v 'no branch' | sed 's/^* //g'
+}
+
+git_dir() {
+    git rev-parse --git-dir
+}
+
+load_settings() {
+    export git_dir=$(git rev-parse --git-dir 2>/dev/null)
+    export develop_branch=$(git config --get trello.branch.develop)
+    export basebranchweb=$(git config --get trello.basebranchweb)
+}
+
+init() {
+    load_settings
+    if test -z "$develop_branch"; then
+        develop_branch=$(git branch | grep develop)
+    fi
+    if test -z "$develop_branch"; then
+        echo "* Branches..."
+        git branch | grep -v '/' | tr '*' '' | xargs -n 1 echo
+        while true
+        do
+            echo -n "Your develop branch: "
+            read develop_branch
+            if git branch -l | grep -q $develop_branch; then
+                break
+            else
+                echo "Can't find the branch $develop_branch, to quit ctrl-c"
+            fi
+        done
+    else
+        echo "* Develop branch is detected: $develop_branch"
+    fi
+    if test -n "$basebranchweb"; then
+        echo "* Detected base url for branch: $basebranchweb"
+    fi
+    savedbase="$basebranchweb"
+    while true
+    do
+        echo "* We need to set branch web url."
+        echo "  For e.g: https://bitbucket.org/your-org/your-repo/branch"
+        echo -n "* Base url for branches (enter for skip): "
+        read basebranchweb
+        if test -z "$basebranchweb"; then
+            if test -n "$savedbase"; then
+                basebranchweb="$savedbase"
+                break
+            fi
+            continue
+        fi
+        echo "* For master branch: " $basebranchweb/master
+        echo -n "  Is that right? (Y/n): "
+        read yn
+        if test -z "$yn" -o "$yn" = "y" -o "$yn" = "Y"; then
+            break;
+        fi
+    done
+    git config trello.branch.develop "$develop_branch"
+    git config trello.basebranchweb "$basebranchweb"
+    echo "* You settings are stored git local config."
+    echo "* You can check with:"
+    echo "  git config -l | grep trello"
+}
+
+create() {
+    mode="$1"
+    shift
+    trellourl="$1"
+    if test "${trellourl#http}" != "${trellourl}"; then
+        ## EX) https://trello.com/c/0x1UMRbn1/123-this-is-test-card
+        urllen=${#trellourl}
+        trid="${trellourl#*://*/*/}"
+        len1=${#trid}
+        trid=${trid%%/*}
+        len2=${#trid}
+        len3=$(expr $urllen - $len1 + 1 + $len2)
+        trellourl="${trellourl:0:$len3}"
+    else
+        echo "Usage: git tr $mode https://trello.com/..."
+        exit 1
+    fi
+    echo $trellourl
+    echo "* Trying to switch develop..."
+    git checkout develop || exit
+    echo ""
+    br="$mode/$trid"
+    echo "* Trying to create branch $br"
+    git checkout -b $br || exit
+    echo ""
+    git config branch."$br".trello "$trellourl" || exit
+}
+
+commit() {
+    branch=$(current_branch)
+    trellourl=$(git config --get branch."$branch".trello)
+    if test -z "$trellourl"; then
+        echo "Can't determine trello url, set trellourl"
+        echo "Usage: git config branch."$branch".trello URL"
+        exit 1
+    fi
+    echo "Trello url: $trellourl"
+    gitdir=$(git_dir)
+    mkdir "$gitdir/MSGTEMPLATES" 2>/dev/null
+    msgtemplate="$gitdir/MSGTEMPLATES/$$.txt"
+    echo -e "\n\n$trellourl" > "$msgtemplate"
+    git commit -v -t "$msgtemplate" "$@"
+}
+
+push() {
+    branch=$(current_branch)
+    trellourl=$(git config --get branch."$branch".trello)
+    git push -u origin "$branch" "$@"
+    echo -e "\n$trellourl\n"
+}
+
+help() {
+    echo "Help!"
+}
+
+case "$1" in
+    i|init)
+        init
+        ;;
+    help)
+        help
+        ;;
+    f|feature)
+        shift
+        create feature "$@"
+        ;;
+    h|hotfix)
+        shift
+        create hotfix "$@"
+        ;;
+    c|commit)
+        shift
+        commit "$@"
+        ;;
+    p|push)
+        shift
+        push "$@"
+        ;;
+    *)
+        echo "Unkown command $1"
+        exit 1
+        ;;
+esac
