@@ -151,7 +151,48 @@ push() {
 }
 
 help() {
-    echo "Help!"
+    cat <<EOT
+Git trello plugin v$VERSION
+
+Usage: git tr <command>
+
+<command> := {init|feature|hotfix|commit|push}
+<command> := {i|f|h|c|p} (in short)
+
+git tr init
+===========
+Setup git-tr variables, every configuration is stored in .git/config via 'git config'.
+
+ - Base branch for feature
+ - Base branch for hotfix
+
+git tr feature <trello-url> [<checkout options>]
+================================================
+Start new feature branch from <trello-url> which is copied from url of a card.
+This command uses 'git checkout -b', any <checkout options> can be added.
+Say, if you are working on https://trello.com/c/0x1UMRbn1/123-this-is-test-card,
+you can start a branch with
+
+  git tr feature https://trello.com/c/021UMRbn1/123-this-is-test-card
+
+And this will start a feature/021UMRbn1 branch from develop
+(or from what you chose in init phase).
+
+git tr hotfix <trello-url> [<checkout options>]
+===============================================
+Same with 'feature' command but this starts a hotfix branch from master
+
+git tr commit [<commit options>]
+================================
+Do 'git commit' with a template which contains the trello url
+
+git tr push [<push options>]
+============================
+Do 'git push origin <feature branch>', and this will help you to make a remote branch
+
+
+
+EOT
 }
 
 show() {
