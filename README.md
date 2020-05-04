@@ -3,8 +3,8 @@ Git extension for trello
 
 You can mange your feature branches related with trello cards.
 
-RULE1: Every **branch name** should have **trello id**.
-RULE2: Every **commit message** should contain its related **trello card url**.
+* RULE1: Every **branch name** should have **trello id**.
+* RULE2: Every **commit message** should contain its related **trello card url**.
 
 
 Installation
@@ -37,7 +37,7 @@ This will ask you to set the base url of your web based repository for branches.
 this url as a prefix for the message of guide, not for accessing the content, so it will be ok
 even if the repository is a private one.
 
-And, more this will ask you to set develop branch name, which is used for branching feature/hotfix.
+And, more this will ask you to determine root branch name (as usually 'develop'), which is used for branching feature/hotfix.
 
 ```bash
 $ git tr init

@@ -12,6 +12,10 @@ load_settings() {
     export develop_branch=$(git config --get trello.branch.develop)
     export release_branch=$(git config --get trello.branch.release)
     export basebranchweb=$(git config --get trello.basebranchweb)
+    export basename_feature=$(git config --get trello.basename.feature)
+    export basename_hotfix=$(git config --get trello.basename.hotfix)
+    ${basename_feature:=feature}
+    ${basename_hotfix:=hotfix}
 }
 
 init() {
@@ -110,11 +114,12 @@ create() {
         echo "Usage: git tr $mode https://trello.com/..."
         exit 1
     fi
-    br="$mode/$trid"
     if test "$mode" = "feature"; then
         basebr="$develop_branch"
+        br="$basename_feature/$trid"
     else
         basebr="$release_branch"
+        br="$basename_hotfix/$trid"
     fi
     echo "* Trying to create branch $br from $basebr"
     git checkout -b $br $basebr || exit
@@ -157,6 +162,8 @@ show() {
     echo "Base branch for features: $develop_branch"
     echo "Base branch for hotfixes: $release_branch"
     echo "Base branch view url    : $basebranchweb"
+    echo "Base name for feature   : $basename_feature/"
+    echo "Base name for hotfix    : $basename_hotfix/"
     echo ""
     echo "Current branch: $branch"
     echo "Current trello: $trellourl"
