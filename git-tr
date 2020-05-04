@@ -1,4 +1,7 @@
 #!/bin/bash
+
+VERSION=1.0
+
 current_branch() {
     git branch --no-color | grep '^\* ' | grep -v 'no branch' | sed 's/^* //g'
 }
@@ -11,11 +14,10 @@ load_settings() {
     export git_dir=$(git rev-parse --git-dir 2>/dev/null)
     export develop_branch=$(git config --get trello.branch.develop)
     export release_branch=$(git config --get trello.branch.release)
-    export basebranchweb=$(git config --get trello.basebranchweb)
     export basename_feature=$(git config --get trello.basename.feature)
     export basename_hotfix=$(git config --get trello.basename.hotfix)
-    ${basename_feature:=feature}
-    ${basename_hotfix:=hotfix}
+    basename_feature=${basename_feature:-feature}
+    basename_hotfix=${basename_hotfix:-hotfix}
 }
 
 init() {
@@ -50,41 +52,10 @@ init() {
     done
 
     hint=
-    savedbase="$basebranchweb"
-    echo ""
-    echo "* We need to set branch web url."
-    if test -n "$basebranchweb"; then
-        echo "* current: $basebranchweb"
-        hint=" (Empty to keep current value)"
-    fi
-    echo ""
-    echo "  Let me know your $develop_branch branch's web page (ends with $develop_branch)"
-    echo "  For e.g: https://bitbucket.org/your-org/your-repo/branch/$develop_branch"
-    while true
-    do
-        echo ""
-        read -p "* Web page for $develop_branch branch$hint: " basebranchweb
-        if test -z "$basebranchweb"; then
-            if test -n "$savedbase"; then
-                basebranchweb="$savedbase"
-                break
-            fi
-            continue
-        fi
-        basebranchweb=${basebranchweb%/$develop_branch}
-        echo ""
-        echo "* Try open this: " $basebranchweb/$release_branch
-        echo -n "  Is it ok? (Y/n): "
-        read yn
-        if test -z "$yn" -o "$yn" = "y" -o "$yn" = "Y"; then
-            break;
-        fi
-    done
     git config trello.branch.develop "$develop_branch"
     git config trello.branch.release "$release_branch"
-    git config trello.basebranchweb "$basebranchweb"
     echo ""
-    echo "* You settings are stored git local config. check this,"
+    echo "* Your settings are stored git local config. check this,"
     echo ""
     echo "  git config -l | grep trello"
     echo ""
@@ -202,7 +173,6 @@ show() {
     echo ""
     echo "Base branch for features: $develop_branch"
     echo "Base branch for hotfixes: $release_branch"
-    echo "Base branch view url    : $basebranchweb"
     echo "Base name for feature   : $basename_feature/"
     echo "Base name for hotfix    : $basename_hotfix/"
     echo ""
