@@ -3,6 +3,10 @@ Git extension for trello
 
 You can mange your feature branches related with trello cards.
 
+RULE1: Every **branch name** should have **trello id**.
+RULE2: Every **commit message** should contain its related **trello card url**.
+
+
 Installation
 ============
 
@@ -10,16 +14,17 @@ Clone the git repository or download zip file run install.sh
 
 ```bash
 $ git clone https://github.com/gitulamy/git-tr.git
-$ ./install.sh
+$ cd git-tr
+$ bash ./install.sh
 ```
 
 OR
 
-```baseh
+```bash
 $ curl https://codeload.github.com/gitulamy/git-tr/zip/master > git-tr.zip
 $ unzip git-tr.zip
-$ cd gut-tr-master
-$ ./install.sh
+$ cd git-tr-master
+$ bash ./install.sh
 ```
 
 Usage
