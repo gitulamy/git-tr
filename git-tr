@@ -14,10 +14,10 @@ load_settings() {
     export git_dir=$(git rev-parse --git-dir 2>/dev/null)
     export develop_branch=$(git config --get trello.branch.develop)
     export release_branch=$(git config --get trello.branch.release)
-    export basename_feature=$(git config --get trello.basename.feature)
-    export basename_hotfix=$(git config --get trello.basename.hotfix)
-    basename_feature=${basename_feature:-feature}
-    basename_hotfix=${basename_hotfix:-hotfix}
+    export basename_feature=$(git config --get trello.prefix.feature)
+    export basename_hotfix=$(git config --get trello.prefix.hotfix)
+    basename_feature=${basename_feature:-feature/}
+    basename_hotfix=${basename_hotfix:-hotfix/}
 }
 
 init() {
@@ -87,10 +87,10 @@ create() {
     fi
     if test "$mode" = "feature"; then
         basebr="$develop_branch"
-        br="$basename_feature/$trid"
+        br="$basename_feature$trid"
     else
         basebr="$release_branch"
-        br="$basename_hotfix/$trid"
+        br="$basename_hotfix$trid"
     fi
     echo "* Trying to create branch $br from $basebr"
     git checkout -b $br $basebr || exit
@@ -173,8 +173,8 @@ show() {
     echo ""
     echo "Base branch for features: $develop_branch"
     echo "Base branch for hotfixes: $release_branch"
-    echo "Base name for feature   : $basename_feature/"
-    echo "Base name for hotfix    : $basename_hotfix/"
+    echo "Base name for feature   : $basename_feature"
+    echo "Base name for hotfix    : $basename_hotfix"
     echo ""
     echo "Current branch: $branch"
     echo "Current trello: $trellourl"
