@@ -92,6 +92,10 @@ create() {
         basebr="$release_branch"
         br="$basename_hotfix$trid"
     fi
+    if git checkout "$br" 2>/dev/null; then
+        echo "Already exists, change current branch to: $br"
+        return
+    fi
     echo "* Trying to create branch $br from $basebr"
     git checkout -b $br $basebr || exit
     echo ""
