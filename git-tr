@@ -125,6 +125,10 @@ push() {
     echo -e "\n$trellourl\n"
 }
 
+list() {
+    git config --get-regexp 'branch\..*\.trello' | sed -e 's@branch\.\(.*\)\.trello@\1@g'
+}
+
 help() {
     cat <<EOT
 Git trello plugin v$VERSION
@@ -183,6 +187,12 @@ show() {
     echo "Current branch: $branch"
     echo "Current trello: $trellourl"
     echo ""
+    local CHECK="$(git config --get-regexp 'branch\..*\.trello')"
+    if test -n "$CHECK"; then
+        echo "Trello Branches:"
+        list
+        echo ""
+    fi
 }
 
 case "$1" in
@@ -207,6 +217,10 @@ case "$1" in
     p|push)
         shift
         push "$@"
+        ;;
+    l|list)
+        shift
+        list "$@"
         ;;
     "")
         show
