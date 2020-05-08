@@ -2,22 +2,51 @@
 
 VERSION=1.0
 
-current_branch() {
-    git branch --no-color | grep '^\* ' | grep -v 'no branch' | sed 's/^* //g'
-}
-
 git_dir() {
     git rev-parse --git-dir
 }
 
+make_trellourl() {
+    local branch="$1"
+    local trid="${branch#$basename_feature}"
+    if test "$trid" = "${branch}"; then
+        trid="${branch#$basename_hotfix}"
+    fi
+    if test "$trid" = "${branch}" -o ${#trid} -ne 8; then
+        return 0
+    fi
+    echo "$trello_cardurl/$trid/"
+}
+
 load_settings() {
-    export git_dir=$(git rev-parse --git-dir 2>/dev/null)
-    export develop_branch=$(git config --get trello.branch.develop)
-    export release_branch=$(git config --get trello.branch.release)
-    export basename_feature=$(git config --get trello.prefix.feature)
-    export basename_hotfix=$(git config --get trello.prefix.hotfix)
+    current_branch=$(echo $(git branch --format="%(if)%(HEAD)%(then)%(refname:short)%(end)"))
+    trello_cardurl="https://trello.com/c"
+    git_dir=$(git rev-parse --git-dir 2>/dev/null)
+    develop_branch=$(git config --get trello.branch.develop)
+    release_branch=$(git config --get trello.branch.release)
+    basename_feature=$(git config --get trello.prefix.feature)
+    basename_hotfix=$(git config --get trello.prefix.hotfix)
     basename_feature=${basename_feature:-feature/}
     basename_hotfix=${basename_hotfix:-hotfix/}
+
+    trellourl=$(git config --get branch."$current_branch".trello)
+    if test -n "$trellourl"; then
+        return 0
+    fi
+
+    trellourl=$(make_trellourl "$current_branch")
+}
+
+assert_in_trello() {
+    if test -n "$trellourl"; then
+        return 0
+    fi
+
+    echo "It seems not in trello working branch, specify trello card url manually"
+    echo ""
+    echo "Usage: git config branch."$current_branch".trello URL"
+    echo ""
+    exit 1
 }
 
 init() {
@@ -51,7 +80,6 @@ init() {
         fi
     done
 
-    hint=
     git config trello.branch.develop "$develop_branch"
     git config trello.branch.release "$release_branch"
     echo ""
@@ -103,13 +131,8 @@ create() {
 }
 
 commit() {
-    branch=$(current_branch)
-    trellourl=$(git config --get branch."$branch".trello)
-    if test -z "$trellourl"; then
-        echo "Can't determine trello url, set trellourl"
-        echo "Usage: git config branch."$branch".trello URL"
-        exit 1
-    fi
+    load_settings
+    assert_in_trello
     echo "Trello url: $trellourl"
     gitdir=$(git_dir)
     mkdir "$gitdir/MSGTEMPLATES" 2>/dev/null
@@ -119,24 +142,30 @@ commit() {
 }
 
 push() {
-    branch=$(current_branch)
-    trellourl=$(git config --get branch."$branch".trello)
-    git push -u origin "$branch" "$@"
+    load_settings
+    assert_in_trello
+    git push -u origin "$current_branch" "$@"
     echo -e "\n$trellourl\n"
 }
 
 list() {
-    git config --get-regexp 'branch\..*\.trello' | sed -e 's@branch\.\(.*\)\.trello@\1@g'
+    load_settings
+    local _feature=${basename_feature/\//\\/}
+    local _hotfix=${basename_hotfix/\//\\/}
+    local branch
+    git branch --list --format '%(refname:short)' | 
+    while read branch
+    do
+        trellourl=$(make_trellourl "$branch")
+        if test -z "$trellourl"; then
+            continue
+        fi
+        echo $branch $trellourl
+    done
 }
 
 delete() {
     load_settings
-    if test -z "$basename_feature" -o -z "$basename_hotfix"; then
-        echo "Invalid configuration"
-        echo "Base name for feature   : $basename_feature"
-        echo "Base name for hotfix    : $basename_hotfix"
-        return 1
-    fi
     BRANCHES=$(git branch -l "$basename_feature*" "$basename_hotfix*" | xargs echo )
     if test -z "$BRANCHES"; then
         echo "Merged branches are already deleted"
@@ -204,23 +233,18 @@ EOT
 
 show() {
     load_settings
-    branch=$(current_branch)
-    trellourl=$(git config --get branch."$branch".trello)
     echo ""
     echo "Base branch for features: $develop_branch"
     echo "Base branch for hotfixes: $release_branch"
     echo "Base name for feature   : $basename_feature"
     echo "Base name for hotfix    : $basename_hotfix"
     echo ""
-    echo "Current branch: $branch"
-    echo "Current trello: $trellourl"
+    echo "Current branch: $current_branch"
+    echo "Current trello: ${trellourl:-(Not in trello branch)}"
     echo ""
-    local CHECK="$(git config --get-regexp 'branch\..*\.trello')"
-    if test -n "$CHECK"; then
-        echo "Trello Branches:"
-        list
-        echo ""
-    fi
+    echo "Trello Branches:"
+    list
+    echo ""
 }
 
 case "$1" in
