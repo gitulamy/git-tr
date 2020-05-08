@@ -129,6 +129,34 @@ list() {
     git config --get-regexp 'branch\..*\.trello' | sed -e 's@branch\.\(.*\)\.trello@\1@g'
 }
 
+delete() {
+    load_settings
+    if test -z "$basename_feature" -o -z "$basename_hotfix"; then
+        echo "Invalid configuration"
+        echo "Base name for feature   : $basename_feature"
+        echo "Base name for hotfix    : $basename_hotfix"
+        return 1
+    fi
+    BRANCHES=$(git branch -l "$basename_feature*" "$basename_hotfix*" | xargs echo )
+    if test -z "$BRANCHES"; then
+        echo "Merged branches are already deleted"
+        return 1
+    fi
+    echo "Trying ..: git branch -d $BRANCHES $@"
+    echo "This will try to delete branches, but will be fail only on not merged branches"
+    PS3="Go on? "
+    select yn in Yes No
+    do
+        if test "$yn" == "No"; then
+            return 0
+        fi
+        if test "$yn" == "Yes"; then
+            break
+        fi
+    done
+    git branch -d $BRANCHES $@
+}
+
 help() {
     cat <<EOT
 Git trello plugin v$VERSION
@@ -221,6 +249,10 @@ case "$1" in
     l|list)
         shift
         list "$@"
+        ;;
+    d|del)
+        shift
+        delete "$@"
         ;;
     "")
         show
