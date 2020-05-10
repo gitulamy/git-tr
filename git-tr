@@ -2,10 +2,6 @@
 
 VERSION=1.0
 
-git_dir() {
-    git rev-parse --git-dir
-}
-
 make_trellourl() {
     local branch="$1"
     local trid="${branch#$feature}"
@@ -134,11 +130,10 @@ commit() {
     load_settings
     assert_in_trello
     echo "Trello url: $trellourl"
-    gitdir=$(git_dir)
-    mkdir "$gitdir/MSGTEMPLATES" 2>/dev/null
-    msgtemplate="$gitdir/MSGTEMPLATES/$$.txt"
+    msgtemplate="$git_dir/TRELLO_MSGTMP"
     echo -e "\n\n$trellourl" > "$msgtemplate"
     git commit -v -t "$msgtemplate" "$@"
+    rm -f "$msgtemplate"
 }
 
 push() {
