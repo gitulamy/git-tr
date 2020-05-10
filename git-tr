@@ -18,12 +18,19 @@ load_settings() {
     current_branch=$(echo $(git branch --format="%(if)%(HEAD)%(then)%(refname:short)%(end)"))
     trello_cardurl="https://trello.com/c"
     git_dir=$(git rev-parse --git-dir 2>/dev/null)
+
     develop_branch=$(git config --get trello.branch.develop)
-    release_branch=$(git config --get trello.branch.release)
+    master_branch=$(git config --get trello.branch.release)
+
     feature=$(git config --get trello.prefix.feature)
+    release=$(git config --get trello.prefix.release)
+    bugfix=$(git config --get trello.prefix.bugfix)
     hotfix=$(git config --get trello.prefix.hotfix)
+
     feature=${feature:-feature/}
-    hotfix=${hotfix:-hotfix/}
+    release=${release:-release-}
+    bugfix=${bugfix:-bugfix/}
+    hotfix=${hotfix:-hotfix-}
 
     trellourl=$(git config --get branch."$current_branch".trello)
     if test -n "$trellourl"; then
@@ -53,9 +60,9 @@ init() {
         develop_branch=$(git branch | grep -w develop | tr '*' ' ' | head -1)
         develop_branch=$(echo $develop_branch)
     fi
-    if test -z "$release_branch"; then
-        release_branch=$(git branch | grep -w master | tr '*' ' ' | head -1)
-        release_branch=$(echo $release_branch)
+    if test -z "$master_branch"; then
+        master_branch=$(git branch | grep -w master | tr '*' ' ' | head -1)
+        master_branch=$(echo $master_branch)
     fi
     echo ""
     echo "* Branches for feature base."
@@ -68,16 +75,16 @@ init() {
     done
     echo ""
     echo "* Branches for hotfix base."
-    PS3="Choose hotfix base branch (e.g.:$release_branch): "
-    select release_branch in $(git branch | grep -v '/' | tr '*' ' ')
+    PS3="Choose hotfix base branch (e.g.:$master_branch): "
+    select master_branch in $(git branch | grep -v '/' | tr '*' ' ')
     do
-        if git branch -l | grep -q $release_branch 2>/dev/null; then
+        if git branch -l | grep -q $master_branch 2>/dev/null; then
             break
         fi
     done
 
     git config trello.branch.develop "$develop_branch"
-    git config trello.branch.release "$release_branch"
+    git config trello.branch.release "$master_branch"
     echo ""
     echo "* Your settings are stored git local config. check this,"
     echo ""
@@ -93,29 +100,32 @@ init() {
 
 create() {
     load_settings
-    mode="$1"
-    shift
-    trellourl="$1"
-    if test "${trellourl#http}" != "${trellourl}"; then
-        ## EX) https://trello.com/c/0x1UMRbn1/123-this-is-test-card
-        urllen=${#trellourl}
+    ## EX) git tr feature      https://trello.com/c/0x1UMRbn1/123-this-is-test-card
+    ## EX) git tr hotfix 1.0.1 https://trello.com/c/124x3Fhk2/234-Hotfix-1.0.1
+    local mode="$1"
+    local trid="$2"
+    local trellourl="$3"
+    if test "${trid#http}" != "${trid}"; then
+        trellourl="$trid"
+        local urllen=${#trellourl}
         trid="${trellourl#*://*/*/}"
         len1=${#trid}
         trid=${trid%%/*}
         len2=${#trid}
         len3=$(expr $urllen - $len1 + 1 + $len2)
         trellourl="${trellourl:0:$len3}"
-    else
-        echo "Usage: git tr $mode https://trello.com/..."
+    fi
+
+    if test "${trellourl#http}" = "${trellourl}"; then
+        echo "Invalid usage, run 'git tr help'"
         exit 1
     fi
-    if test "$mode" = "feature"; then
+    if test "$mode" = "feature" -o "$mode" = "bugfix"; then
         basebr="$develop_branch"
-        br="$feature$trid"
     else
-        basebr="$release_branch"
-        br="$hotfix$trid"
+        basebr="$master_branch"
     fi
+    br="${!mode}$trid"
     if git checkout "$br" 2>/dev/null; then
         echo "Already exists, change current branch to: $br"
         return
@@ -185,10 +195,12 @@ help() {
     cat <<EOT
 Git trello plugin v$VERSION
 
-Usage: git tr <command>
+Usage: git tr <command> [<args>...]
 
-<command> := {init|feature|hotfix|commit|push}
-<command> := {i|f|h|c|p} (in short)
+<command> := {init}
+<command> := {feature|hotfix|bugfix|release}
+<command> := {commit|push}
+<command> := {i|f|h|b|r|c|p} (in short)
 
 git tr init
 ===========
@@ -197,7 +209,7 @@ Setup git-tr variables, every configuration is stored in .git/config via 'git co
  - Base branch for feature
  - Base branch for hotfix
 
-git tr feature <trello-url> [<checkout options>]
+git tr feature [<name>] <trello-url>
 ================================================
 Start new feature branch from <trello-url> which is copied from url of a card.
 This command uses 'git checkout -b', any <checkout options> can be added.
@@ -209,19 +221,27 @@ you can start a branch with
 And this will start a feature/021UMRbn1 branch from develop
 (or from what you chose in init phase).
 
-git tr hotfix <trello-url> [<checkout options>]
+git tr bugfix [<name>] <trello-url>
+===============================================
+Same with 'feature' command but this starts a bugfix branch from develop
+
+git tr hotfix [<name>] <trello-url>
 ===============================================
 Same with 'feature' command but this starts a hotfix branch from master
+
+git tr release [<name>] <trello-url>
+===============================================
+Same with 'feature' command but this starts a release branch from master
 
 git tr commit [<commit options>]
 ================================
 Do 'git commit' with a template which contains the trello url
 
+git tr push
 git tr push [<push options>]
 ============================
-Do 'git push origin <feature branch>', and this will help you to make a remote branch
-
-
+Do 'git push origin <current branch>' if not options specified, and this will help you to make a remote branch
+If you want any other option you must specify <remote> <target branch> manually
 
 EOT
 }
@@ -229,10 +249,12 @@ EOT
 show() {
     load_settings
     echo ""
-    echo "Base branch for features: $develop_branch"
-    echo "Base branch for hotfixes: $release_branch"
+    echo "Base branch for feature, bugfix : $develop_branch"
+    echo "Base branch for release, hotfix : $master_branch"
     echo "Base name for feature   : $feature"
     echo "Base name for hotfix    : $hotfix"
+    echo "Base name for bugfix    : $bugfix"
+    echo "Base name for release   : $release"
     echo ""
     echo "Current branch: $current_branch"
     echo "Current trello: ${trellourl:-(Not in trello branch)}"
@@ -256,6 +278,14 @@ case "$1" in
     h|hotfix)
         shift
         create hotfix "$@"
+        ;;
+    r|release)
+        shift
+        create release "$@"
+        ;;
+    b|bugfix)
+        shift
+        create bugfix "$@"
         ;;
     c|commit)
         shift
