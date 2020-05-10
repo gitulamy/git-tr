@@ -8,9 +8,9 @@ git_dir() {
 
 make_trellourl() {
     local branch="$1"
-    local trid="${branch#$basename_feature}"
+    local trid="${branch#$feature}"
     if test "$trid" = "${branch}"; then
-        trid="${branch#$basename_hotfix}"
+        trid="${branch#$hotfix}"
     fi
     if test "$trid" = "${branch}" -o ${#trid} -ne 8; then
         return 0
@@ -24,10 +24,10 @@ load_settings() {
     git_dir=$(git rev-parse --git-dir 2>/dev/null)
     develop_branch=$(git config --get trello.branch.develop)
     release_branch=$(git config --get trello.branch.release)
-    basename_feature=$(git config --get trello.prefix.feature)
-    basename_hotfix=$(git config --get trello.prefix.hotfix)
-    basename_feature=${basename_feature:-feature/}
-    basename_hotfix=${basename_hotfix:-hotfix/}
+    feature=$(git config --get trello.prefix.feature)
+    hotfix=$(git config --get trello.prefix.hotfix)
+    feature=${feature:-feature/}
+    hotfix=${hotfix:-hotfix/}
 
     trellourl=$(git config --get branch."$current_branch".trello)
     if test -n "$trellourl"; then
@@ -115,10 +115,10 @@ create() {
     fi
     if test "$mode" = "feature"; then
         basebr="$develop_branch"
-        br="$basename_feature$trid"
+        br="$feature$trid"
     else
         basebr="$release_branch"
-        br="$basename_hotfix$trid"
+        br="$hotfix$trid"
     fi
     if git checkout "$br" 2>/dev/null; then
         echo "Already exists, change current branch to: $br"
@@ -150,8 +150,8 @@ push() {
 
 list() {
     load_settings
-    local _feature=${basename_feature/\//\\/}
-    local _hotfix=${basename_hotfix/\//\\/}
+    local _feature=${feature/\//\\/}
+    local _hotfix=${hotfix/\//\\/}
     local branch
     git branch --list --format '%(refname:short)' | 
     while read branch
@@ -166,7 +166,7 @@ list() {
 
 delete() {
     load_settings
-    BRANCHES=$(git branch -l "$basename_feature*" "$basename_hotfix*" | xargs echo )
+    BRANCHES=$(git branch -l "$feature*" "$hotfix*" | xargs echo )
     if test -z "$BRANCHES"; then
         echo "Merged branches are already deleted"
         return 1
@@ -236,8 +236,8 @@ show() {
     echo ""
     echo "Base branch for features: $develop_branch"
     echo "Base branch for hotfixes: $release_branch"
-    echo "Base name for feature   : $basename_feature"
-    echo "Base name for hotfix    : $basename_hotfix"
+    echo "Base name for feature   : $feature"
+    echo "Base name for hotfix    : $hotfix"
     echo ""
     echo "Current branch: $current_branch"
     echo "Current trello: ${trellourl:-(Not in trello branch)}"
