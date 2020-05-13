@@ -200,7 +200,7 @@ Usage: git tr <command> [<args>...]
 <command> := {init}
 <command> := {feature|hotfix|bugfix|release}
 <command> := {commit|push}
-<command> := {i|f|h|b|r|c|p} (in short)
+<command> := {i|f|h|bug|rel|c|p} (in short)
 
 git tr init
 ===========
@@ -279,11 +279,11 @@ case "$1" in
         shift
         create hotfix "$@"
         ;;
-    r|release)
+    rel|release)
         shift
         create release "$@"
         ;;
-    b|bugfix)
+    bug|bugfix)
         shift
         create bugfix "$@"
         ;;
