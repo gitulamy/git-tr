@@ -191,6 +191,12 @@ delete() {
     git branch -d $BRANCHES $@
 }
 
+urlset() {
+    load_settings
+    echo "Trello url: $1"
+    git config branch."$current_branch".trello "$1"
+}
+
 help() {
     cat <<EOT
 Git trello plugin v$VERSION
@@ -243,6 +249,13 @@ git tr push [<push options>]
 Do 'git push origin <current branch>' if not options specified, and this will help you to make a remote branch
 If you want any other option you must specify <remote> <target branch> manually
 
+Change prefix
+=============
+
+feature: git config trello.prefix.feature feature/
+release: git config trello.prefix.release release/
+bugfix:  git config trello.prefix.bugfix bugfix/
+hotfix:  git config trello.prefix.hotfix hotfix/
 EOT
 }
 
@@ -302,6 +315,10 @@ case "$1" in
     d|del)
         shift
         delete "$@"
+        ;;
+    set)
+        shift
+        urlset "$@"
         ;;
     "")
         show
